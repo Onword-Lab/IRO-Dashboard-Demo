@@ -10,6 +10,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 next-env.d.ts
+*.tsbuildinfo
 
 # OMC local tooling state (not part of the app)
 .omc/

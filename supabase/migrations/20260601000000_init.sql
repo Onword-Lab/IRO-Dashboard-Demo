@@ -1,6 +1,7 @@
--- IRO · Supabase schema  (run once in your project's SQL Editor)
--- JSON-row model: each table stores the full domain object in `data` (jsonb),
--- so the backend swap needs no per-field column mapping and is easy to evolve.
+-- IRO · initial schema (idempotent — safe to run/apply more than once)
+-- Applied automatically by the Supabase GitHub integration on push to `main`,
+-- and/or paste-and-run once in the SQL Editor for the first setup.
+-- JSON-row model: each table stores the full domain object in `data` (jsonb).
 
 create extension if not exists "pgcrypto";
 
@@ -40,7 +41,7 @@ create table if not exists tax_cashbills (   -- 현금영수증
   updated_at timestamptz not null default now()
 );
 
-create table if not exists tax_profile (     -- 내 사업자(공급자) 정보 (single row)
+create table if not exists tax_profile (     -- 내 사업자(공급자) 정보 (single row, id='default')
   id text primary key default 'default',
   data jsonb not null,
   updated_at timestamptz not null default now()
@@ -63,11 +64,20 @@ create table if not exists slack_messages (  -- inbound feed for realtime → da
 );
 create index if not exists slack_messages_channel_idx on slack_messages (channel, created_at desc);
 
--- ── Realtime: dashboard subscribes to new agent/user messages (sub-second push) ──
-alter publication supabase_realtime add table slack_messages;
+-- ── Realtime: dashboard subscribes to new agent/user messages (idempotent add) ──
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'slack_messages'
+  ) then
+    alter publication supabase_realtime add table public.slack_messages;
+  end if;
+end $$;
 
 -- ── RLS: server uses the service-role key (bypasses RLS). Enable RLS so the
---    public anon key can't touch these directly; add client read policies later. ──
+--    public anon key can't touch these directly. Add client read policies later
+--    (e.g. a SELECT policy on slack_messages) when wiring browser Realtime. ──
 alter table projects       enable row level security;
 alter table transactions   enable row level security;
 alter table contacts       enable row level security;
