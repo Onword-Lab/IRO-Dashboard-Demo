@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// One-time Google OAuth helper → prints a Drive refresh token for IRO.
+// One-time Google OAuth helper → mints a refresh token for IRO.
 //
-//   node scripts/get-google-token.mjs
+//   node scripts/get-google-token.mjs                 # main account (Drive+Calendar+Contacts+Gmail)
+//   node scripts/get-google-token.mjs --account=jinho # a second inbox → GMAIL_REFRESH_TOKEN_JINHO
 //
 // Prereq: GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET in iro/.env.local
-// (from a Google Cloud "Desktop app" OAuth client, Drive API enabled).
-// Desktop clients allow loopback redirects, so no redirect URI registration
-// is needed beyond what Google grants automatically.
+// (from a Google Cloud "Desktop app" OAuth client). In Google Cloud Console,
+// ENABLE these APIs for the project: Drive, Google Calendar, Gmail, People.
+// Desktop clients allow loopback redirects, so no redirect URI registration is
+// needed. The minted refresh token is written straight into .env.local.
 import http from "node:http";
 import { exec } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -28,11 +30,26 @@ function loadEnv() {
 }
 loadEnv();
 
+// --account=NAME → mint a Gmail-only token saved as GMAIL_REFRESH_TOKEN_<NAME>.
+const accArg = process.argv.find((a) => a.startsWith("--account="));
+const ACCOUNT = accArg ? accArg.split("=")[1].trim().toLowerCase() : null;
+const TARGET_VAR = ACCOUNT ? `GMAIL_REFRESH_TOKEN_${ACCOUNT.toUpperCase()}` : "GOOGLE_REFRESH_TOKEN";
+
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const PORT = Number(process.env.GOOGLE_OAUTH_PORT || 53682);
 const REDIRECT = `http://localhost:${PORT}/oauth2callback`;
-const SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+
+// Main account gets the full read set; a named inbox only needs Gmail read.
+const SCOPES = ACCOUNT
+  ? ["https://www.googleapis.com/auth/gmail.readonly"]
+  : [
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/contacts",
+    ];
+const SCOPE = SCOPES.join(" ");
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error("✗ Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. Add them to iro/.env.local first.");
@@ -80,15 +97,15 @@ const server = http.createServer(async (req, res) => {
     const envPath = path.join(ROOT, ".env.local");
     let env = "";
     try { env = readFileSync(envPath, "utf8"); } catch {}
-    const re = /^GOOGLE_REFRESH_TOKEN=.*$/m;
+    const re = new RegExp(`^${TARGET_VAR}=.*$`, "m");
     env = re.test(env)
-      ? env.replace(re, `GOOGLE_REFRESH_TOKEN=${tok.refresh_token}`)
-      : (env === "" || env.endsWith("\n") ? env : env + "\n") + `GOOGLE_REFRESH_TOKEN=${tok.refresh_token}\n`;
+      ? env.replace(re, `${TARGET_VAR}=${tok.refresh_token}`)
+      : (env === "" || env.endsWith("\n") ? env : env + "\n") + `${TARGET_VAR}=${tok.refresh_token}\n`;
     writeFileSync(envPath, env);
-    res.end("✓ Success! Refresh token saved to .env.local — return to your terminal. You can close this tab.");
+    res.end(`✓ Success! ${TARGET_VAR} saved to .env.local — return to your terminal. You can close this tab.`);
     const t = tok.refresh_token;
-    console.log(`\n✓ Saved GOOGLE_REFRESH_TOKEN (${t.slice(0, 6)}…${t.slice(-4)}) to iro/.env.local`);
-    console.log("Next:  npm run dev   → the top bar should show  Drive: live\n");
+    console.log(`\n✓ Saved ${TARGET_VAR} (${t.slice(0, 6)}…${t.slice(-4)}) to iro/.env.local`);
+    console.log("Next:  npm run dev   → the relevant page badge should flip to  live\n");
     server.close(); process.exit(0);
   } catch (e) {
     res.end("Token exchange failed — see terminal.");
@@ -98,7 +115,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log("\nIRO · Google Drive OAuth helper");
+  console.log(`\nIRO · Google OAuth helper${ACCOUNT ? ` (account: ${ACCOUNT})` : ""}`);
+  console.log("Scopes:", SCOPE);
   console.log("Redirect URI (loopback, auto-allowed for Desktop clients):");
   console.log("  " + REDIRECT);
   console.log("\nOpening the consent screen… if it doesn't open, paste this into your browser:\n");

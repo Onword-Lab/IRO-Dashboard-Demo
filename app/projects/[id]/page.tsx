@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
-import {
-  getProject, getTasksByProject, getFolderTree, getNotionMarkdown, getDriveFolders,
-} from "@/lib/data";
+import { getProject, getTasksForProject, getFolderTree, getNotionItemsForRef } from "@/lib/data";
 import ProjectDetail from "@/components/ProjectDetail";
 
 export const dynamic = "force-dynamic";
@@ -10,20 +8,18 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [tasks, tree, notionMarkdown] = await Promise.all([
-    getTasksByProject(project.id),
-    getFolderTree(project.driveFolderId),
-    getNotionMarkdown(project),
+  const [tasks, tree, notionItems] = await Promise.all([
+    getTasksForProject(project),
+    getFolderTree(project.drive?.id),
+    getNotionItemsForRef(project.notion),
   ]);
-  const folders = getDriveFolders();
 
   return (
     <ProjectDetail
       project={project}
       tasks={tasks}
       tree={tree}
-      notionMarkdown={notionMarkdown}
-      folders={folders}
+      notionItems={notionItems}
     />
   );
 }

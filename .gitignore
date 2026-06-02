@@ -13,3 +13,6 @@ next-env.d.ts
 
 # OMC local tooling state (not part of the app)
 .omc/
+
+# Local project store (dev only — Supabase on deploy)
+.data/

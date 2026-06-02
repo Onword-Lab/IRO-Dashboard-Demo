@@ -45,6 +45,23 @@ async function getAccessToken(): Promise<string | null> {
   return cached.token;
 }
 
+// List sub-folders of a parent (or My Drive root) — for the attach picker and
+// the Drive sidebar browser.
+export async function listFolders(parentId?: string): Promise<{ id: string; name: string }[]> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Drive not configured");
+  const parent = parentId || "root";
+  const q = encodeURIComponent(
+    `'${parent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+  );
+  const fields = encodeURIComponent("files(id,name)");
+  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=name`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  if (!res.ok) throw new Error(`Drive folders ${parent} failed: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  return (json.files ?? []).map((f: any) => ({ id: f.id, name: f.name }));
+}
+
 export async function liveFolderTree(folderId: string): Promise<FileNode[]> {
   const token = await getAccessToken();
   if (!token) throw new Error("Drive not configured");

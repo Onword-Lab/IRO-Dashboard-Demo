@@ -1,49 +1,48 @@
-// Data facade. Reads LIVE from Notion/Google Drive when credentials are present;
-// otherwise serves the bundled real-data snapshot in lib/seed.ts.
-// The UI only ever imports from here — snapshot → live needs no UI change.
-import type { Project, Task, FileNode, DriveFolder } from "./types";
+// Data facade. The UI imports ONLY from here.
+//  • Projects  → our own store (lib/projects-store.ts) — dashboard-owned.
+//  • Tasks     → live Notion (IRO Tasks DB), snapshot fallback.
+//  • Attached Notion/Drive content → live adapters.
+import type { Project, Task, FileNode, NotionRef, NotionItem } from "./types";
 import * as seed from "./seed";
-import { liveProjects, liveTasks, liveNotionMarkdown } from "./notion";
-import { liveFolderTree, driveConfigured } from "./drive";
+import { liveTasks, notionNodeItems, searchNotion, notionConfigured } from "./notion";
+import { liveFolderTree, driveConfigured, listFolders } from "./drive";
+import { listProjects, getProjectById } from "./projects-store";
 
-const hasNotion = !!process.env.NOTION_TOKEN;
+const hasNotion = notionConfigured();
 const hasDrive = driveConfigured();
 
 export function dataMode() {
   return {
-    notion: hasNotion ? "live" : "snapshot",
-    drive: hasDrive ? "live" : "snapshot",
+    notion: hasNotion ? "live" : "off",
+    drive: hasDrive ? "live" : "off",
+    store: "file" as "file" | "supabase",
   };
 }
 
+// ── Projects (dashboard-owned) ──
 export async function getProjects(): Promise<Project[]> {
-  if (hasNotion) {
-    try { return await liveProjects(); } catch (e) { console.error("Notion live failed, using snapshot:", e); }
-  }
-  return seed.projects;
+  return listProjects();
 }
-
 export async function getProject(id: string): Promise<Project | undefined> {
-  const all = await getProjects();
-  return all.find((p) => p.id === id);
+  return getProjectById(id);
 }
 
+// ── Tasks (Notion-backed) ──
 export async function getTasks(): Promise<Task[]> {
   if (hasNotion) {
-    try { return await liveTasks(); } catch (e) { console.error("Notion live failed, using snapshot:", e); }
+    try { return await liveTasks(); } catch (e) { console.error("Notion tasks failed, using snapshot:", e); }
   }
   return seed.tasks;
 }
-
-export async function getTasksByProject(projectId: string): Promise<Task[]> {
+// Best-effort link: match a task's project name to this project's name.
+export async function getTasksForProject(project: Project): Promise<Task[]> {
   const all = await getTasks();
-  return all.filter((t) => t.projectId === projectId);
+  const name = project.name.trim().toLowerCase();
+  if (!name) return [];
+  return all.filter((t) => (t.projectName ?? "").trim().toLowerCase() === name);
 }
 
-export function getDriveFolders(): DriveFolder[] {
-  return seed.driveFolders;
-}
-
+// ── Attached Drive folder ──
 export async function getFolderTree(folderId: string | null | undefined): Promise<FileNode[]> {
   if (!folderId) return [];
   if (hasDrive) {
@@ -52,9 +51,15 @@ export async function getFolderTree(folderId: string | null | undefined): Promis
   return seed.folderTrees[folderId] ?? [];
 }
 
-export async function getNotionMarkdown(project: Project): Promise<string> {
-  if (hasNotion) {
-    try { return await liveNotionMarkdown(project.notionPageId); } catch (e) { console.error("Notion live failed, using snapshot:", e); }
+// ── Attached Notion ref (top-level items; children fetched on expand) ──
+export async function getNotionItemsForRef(ref: NotionRef | null | undefined): Promise<NotionItem[]> {
+  if (hasNotion && ref) {
+    try { return await notionNodeItems(ref.id, ref.kind); } catch (e) { console.error("Notion render failed:", e); }
   }
-  return seed.notionSnapshots[project.id] ?? "_No notes captured yet. Open this project's page in Notion._";
+  return [];
 }
+
+// Re-exports used by API routes / browse pages.
+export { searchNotion, listFolders, notionNodeItems };
+export const notionLive = hasNotion;
+export const driveLive = hasDrive;
