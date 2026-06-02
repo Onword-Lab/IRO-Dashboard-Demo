@@ -1,21 +1,24 @@
-// ── Tax store (dashboard-owned, TEST MODE) ───────────────────────────────────
-// Holds the issuer profile, issued 세금계산서(매출), and 현금영수증 in a local JSON
-// file so the self-service console fully works before Popbill is connected.
-// Backend swap plan: NOW .data/tax.json → LATER Popbill API (lib/tax.ts) + Supabase.
-// All access goes through this module so the swap is a single-file change.
+// ── Tax store (세금계산서 + 현금영수증 + 공급자 프로필) ──────────────────────────
+// Dual backend: Supabase (tax_profile / tax_invoices / tax_cashbills) when
+// configured, else .data/tax.json. Issuance still routes through Popbill
+// (test/live) via lib/popbill — only the persistence layer changes.
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { TaxInvoice, TaxItem, CashReceipt, CashReceiptPurpose, IssuerProfile } from "./types";
 import { sampleInvoices, sampleCashReceipts, sampleIssuerProfile } from "./seed";
 import { popbillEnabled, issueTaxInvoice, issueCashbill } from "./popbill";
+import { supabase, supabaseConfigured } from "./supabase";
+import { jsonStore } from "./supabase-store";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "tax.json");
+const sbInvoices = jsonStore<TaxInvoice>("tax_invoices");
+const sbCashbills = jsonStore<CashReceipt>("tax_cashbills");
 
 interface TaxData {
   profile: IssuerProfile;
-  invoices: TaxInvoice[]; // 매출 (issued by us)
+  invoices: TaxInvoice[];
   cashReceipts: CashReceipt[];
 }
 
@@ -23,7 +26,6 @@ async function writeData(d: TaxData): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(FILE, JSON.stringify(d, null, 2), "utf8");
 }
-
 async function readData(): Promise<TaxData> {
   try {
     const txt = await fs.readFile(FILE, "utf8");
@@ -34,7 +36,6 @@ async function readData(): Promise<TaxData> {
       cashReceipts: Array.isArray(d.cashReceipts) ? d.cashReceipts : [],
     };
   } catch {
-    // Seed on first run so the console isn't empty.
     const seeded: TaxData = {
       profile: { ...sampleIssuerProfile },
       invoices: sampleInvoices.filter((i) => i.type === "sales"),
@@ -45,6 +46,17 @@ async function readData(): Promise<TaxData> {
   }
 }
 
+// Supabase single-row profile helpers (IssuerProfile has no id → keyed 'default').
+async function sbGetProfile(): Promise<IssuerProfile> {
+  const { data, error } = await supabase().from("tax_profile").select("data").eq("id", "default").maybeSingle();
+  if (error) throw new Error(`tax_profile get: ${error.message}`);
+  return (data?.data as IssuerProfile) ?? { ...sampleIssuerProfile };
+}
+async function sbSaveProfile(profile: IssuerProfile): Promise<void> {
+  const { error } = await supabase().from("tax_profile").upsert({ id: "default", data: profile, updated_at: new Date().toISOString() });
+  if (error) throw new Error(`tax_profile upsert: ${error.message}`);
+}
+
 function pad(n: number) { return String(n).padStart(2, "0"); }
 function today() { return new Date().toISOString().slice(0, 10); }
 function mockConfirmNum(prefix: string) {
@@ -53,12 +65,21 @@ function mockConfirmNum(prefix: string) {
   const rand = Math.floor(Math.random() * 1e8).toString().padStart(8, "0");
   return `${prefix}${ymd}-${rand}`;
 }
+const byIssueDateDesc = (a: TaxInvoice, b: TaxInvoice) => (a.issueDate < b.issueDate ? 1 : -1);
+const byTradeDateDesc = (a: CashReceipt, b: CashReceipt) => (a.tradeDate < b.tradeDate ? 1 : -1);
 
 // ── Profile (내 사업자 정보) ──
 export async function getProfile(): Promise<IssuerProfile> {
+  if (supabaseConfigured()) return sbGetProfile();
   return (await readData()).profile;
 }
 export async function saveProfile(patch: Partial<IssuerProfile>): Promise<IssuerProfile> {
+  if (supabaseConfigured()) {
+    const cur = await sbGetProfile();
+    const next = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+    await sbSaveProfile(next);
+    return next;
+  }
   const d = await readData();
   d.profile = { ...d.profile, ...patch, updatedAt: new Date().toISOString() };
   await writeData(d);
@@ -77,11 +98,10 @@ export interface InvoiceInput {
   receiveType?: "영수" | "청구";
 }
 export async function listInvoices(): Promise<TaxInvoice[]> {
-  const d = await readData();
-  return [...d.invoices].sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1));
+  if (supabaseConfigured()) return (await sbInvoices.list()).sort(byIssueDateDesc);
+  return (await readData()).invoices.sort(byIssueDateDesc);
 }
 export async function createInvoice(input: InvoiceInput): Promise<TaxInvoice> {
-  const d = await readData();
   const taxType = input.taxType ?? "과세";
   const items: TaxItem[] = (input.items ?? [])
     .filter((it) => (it.name ?? "").trim())
@@ -111,10 +131,11 @@ export async function createInvoice(input: InvoiceInput): Promise<TaxInvoice> {
     status: "issued",
     createdAt: new Date().toISOString(),
   };
-  // 팝빌(테스트) 실발행 시도 → 성공 시 실제 국세청 승인번호, 실패 시 로컬 발번으로 대체.
+  // 팝빌(테스트/실) 발행 시도 → 성공 시 국세청 승인번호, 실패 시 로컬 발번.
+  const profile = await getProfile();
   if (popbillEnabled()) {
     try {
-      const r = await issueTaxInvoice(inv, d.profile);
+      const r = await issueTaxInvoice(inv, profile);
       inv.ntsConfirmNum = r.ntsConfirmNum || mockConfirmNum("");
       inv.status = "sent";
     } catch (e) {
@@ -124,6 +145,8 @@ export async function createInvoice(input: InvoiceInput): Promise<TaxInvoice> {
   } else {
     inv.ntsConfirmNum = mockConfirmNum("");
   }
+  if (supabaseConfigured()) { await sbInvoices.insert(inv); return inv; }
+  const d = await readData();
   d.invoices.push(inv);
   await writeData(d);
   return inv;
@@ -137,11 +160,10 @@ export interface CashbillInput {
   supplyAmount?: number;
 }
 export async function listCashReceipts(): Promise<CashReceipt[]> {
-  const d = await readData();
-  return [...d.cashReceipts].sort((a, b) => (a.tradeDate < b.tradeDate ? 1 : -1));
+  if (supabaseConfigured()) return (await sbCashbills.list()).sort(byTradeDateDesc);
+  return (await readData()).cashReceipts.sort(byTradeDateDesc);
 }
 export async function createCashReceipt(input: CashbillInput): Promise<CashReceipt> {
-  const d = await readData();
   const supply = Math.round(Number(input.supplyAmount) || 0);
   const vat = Math.round(supply * 0.1);
   const cr: CashReceipt = {
@@ -155,9 +177,10 @@ export async function createCashReceipt(input: CashbillInput): Promise<CashRecei
     status: "issued",
     createdAt: new Date().toISOString(),
   };
+  const profile = await getProfile();
   if (popbillEnabled()) {
     try {
-      const r = await issueCashbill(cr, d.profile);
+      const r = await issueCashbill(cr, profile);
       cr.ntsConfirmNum = r.ntsConfirmNum || mockConfirmNum("CR");
     } catch (e) {
       console.error("Popbill 현금영수증 발행 실패 — 로컬 저장으로 대체:", e);
@@ -166,6 +189,8 @@ export async function createCashReceipt(input: CashbillInput): Promise<CashRecei
   } else {
     cr.ntsConfirmNum = mockConfirmNum("CR");
   }
+  if (supabaseConfigured()) { await sbCashbills.insert(cr); return cr; }
+  const d = await readData();
   d.cashReceipts.push(cr);
   await writeData(d);
   return cr;

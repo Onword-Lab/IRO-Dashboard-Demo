@@ -14,7 +14,12 @@ export function supabase(): SupabaseClient {
   if (!client) {
     const url = process.env.SUPABASE_URL!;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
-    client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    client = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      // Next.js App Router caches fetch() by default, which would return STALE
+      // Supabase reads. Force no-store so every query hits Postgres fresh.
+      global: { fetch: (input: any, init?: any) => fetch(input, { ...(init ?? {}), cache: "no-store" }) },
+    });
   }
   return client;
 }
