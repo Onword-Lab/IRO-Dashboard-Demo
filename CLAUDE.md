@@ -104,3 +104,23 @@ add `NOTION_TOKEN` + Google creds (see README). **Never commit `.env.local` or a
 3. Tasks: also dashboard-owned (create/edit/move) instead of read-only from Notion.
 4. Link tasks→projects by the new project id (currently best-effort name match).
 5. Lazy subfolder expansion in the Drive tree; sortable table columns.
+
+## Data policy
+- **No mock/seed data in the production DB.** Supabase starts EMPTY; real company data is
+  added via the UI (writes go to Postgres). The dashboard-owned tabs (Projects/Banking/
+  Contacts/Tax) are intentionally blank until real data is entered. A mock seed generator
+  can be regenerated on request (do NOT commit a seed.sql by default).
+- Connected-API tabs (Calendar/Mail/Code/Notion/Drive) still show bundled `lib/seed.ts`
+  sample until their env keys are set — that's the sample→live convenience, not DB mock data.
+
+## Future: AWS migration (keep in mind)
+The team will eventually run IRO's backend (server + DB) on **AWS**, moving off Vercel/Supabase.
+Preserve portability:
+- Keep ALL persistence behind the store seam — `lib/supabase-store.ts` (`jsonStore`) + each
+  `*-store.ts`'s `supabaseConfigured()` branch. Swapping Supabase → **AWS RDS (Postgres)**
+  should be a near single-file change to the client in `lib/supabase.ts`.
+- Avoid Supabase-only features in app logic. Current Supabase-specific dependency:
+  **Realtime** (Slack inbound feed → dashboard). On AWS replace with AppSync/WebSocket/
+  SNS+SQS or polling — flag before relying on it further.
+- Env-based config only (no hardcoded endpoints). Secrets: Vercel env now → **AWS SSM /
+  Secrets Manager** later. Next.js runs on AWS via Amplify Hosting, ECS/Fargate, or OpenNext/Lambda.
