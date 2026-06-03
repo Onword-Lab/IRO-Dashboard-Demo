@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutGrid, CheckSquare, Calendar, Mail, Contact, Wallet, Receipt, Code2,
-  FileText, HardDrive, MessagesSquare,
+  FileText, HardDrive, MessagesSquare, ShoppingCart, Truck, Package, BarChart3, Plug,
 } from "lucide-react";
 
 type Item = { href: string; label: string; icon: any };
@@ -23,6 +23,13 @@ const GROUPS: { label: string; items: Item[] }[] = [
   { label: "Finance", items: [
     { href: "/finance", label: "Banking", icon: Wallet },
     { href: "/tax", label: "Tax", icon: Receipt },
+    { href: "/connections", label: "연동", icon: Plug },
+  ]},
+  { label: "Commerce", items: [
+    { href: "/orders", label: "Orders", icon: ShoppingCart },
+    { href: "/shipping", label: "Shipping", icon: Truck },
+    { href: "/inventory", label: "Inventory", icon: Package },
+    { href: "/sales", label: "Sales", icon: BarChart3 },
   ]},
   { label: "Dev", items: [
     { href: "/code", label: "Code", icon: Code2 },

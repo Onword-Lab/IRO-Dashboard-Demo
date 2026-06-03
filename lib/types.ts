@@ -261,3 +261,91 @@ export interface SlackMessage {
   replyCount?: number;      // on a parent: number of replies
   reactions?: { emoji: string; count: number }[];
 }
+
+// 🛒 Commerce (유통/커머스) — 셀러 API 통합 (스마트스토어·쿠팡·11번가·자사몰)
+export type Market = "스마트스토어" | "쿠팡" | "11번가" | "자사몰";
+export type OrderStatus = "결제완료" | "상품준비중" | "배송중" | "배송완료" | "취소" | "반품";
+export interface CommerceOrder {
+  id: string;               // 주문번호
+  orderedAt: string;        // 주문일시
+  market: Market;
+  sku: string;
+  productName: string;
+  option?: string;
+  qty: number;
+  unitPrice: number;        // 판매단가
+  amount: number;           // 결제금액 = qty × unitPrice
+  buyer: string;            // 주문자
+  phone: string;            // 연락처
+  status: OrderStatus;
+}
+
+export type ShipStatus = "집화" | "간선상차" | "배송출발" | "배송중" | "배송완료";
+export interface ShippingInfo {
+  orderId: string;
+  recipient: string;
+  address: string;
+  courier: string;          // 택배사
+  trackingNo: string;       // 운송장번호
+  shippedAt?: string;
+  status: ShipStatus;
+  eta?: string;             // 예상도착
+  memo?: string;
+}
+
+export type StockStatus = "정상" | "부족" | "품절";
+export interface InventoryItem {
+  sku: string;
+  productName: string;
+  option?: string;
+  stock: number;            // 현재고
+  safetyStock: number;      // 안전재고
+  incoming?: number;        // 입고예정
+  costPrice: number;        // 매입가
+  salePrice: number;        // 판매가
+}
+
+export interface SalesDay {
+  date: string;
+  orders: number;
+  revenue: number;          // 매출액
+  fee: number;              // 마켓수수료
+  adCost: number;           // 광고비
+  refund: number;           // 환불액
+  // 순이익(net) = revenue − fee − adCost − refund  (계산은 화면에서)
+}
+
+// 🧾 거래처(공급받는자) 마스터 + 계좌/카드 연동(mock) — 세금계산서 자동완성용
+export interface Partner {
+  id: string;
+  name: string;             // 상호
+  bizNo: string;            // 사업자등록번호
+  ceoName?: string;         // 대표자
+  email?: string;
+  address?: string;
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ConnectionKind = "bank" | "card";
+export interface BankAccount {
+  id: string;
+  kind: ConnectionKind;     // 계좌 / 카드
+  label: string;            // 은행명 / 카드사명
+  accountNo: string;        // 표시용(마스킹된 번호)
+  holder?: string;          // 예금주
+  addedAt: string;
+}
+
+export type TxnSource = "bank" | "card";
+export interface BankTxn {
+  id: string;
+  accountId: string;
+  date: string;             // YYYY-MM-DD
+  direction: "in" | "out";  // 입금 / 출금
+  counterparty: string;     // 적요 / 거래처
+  amount: number;
+  source: TxnSource;
+  issuedInvoiceId?: string; // 세금계산서 발행 시 연결(소진 표시)
+}

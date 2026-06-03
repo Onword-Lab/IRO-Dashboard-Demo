@@ -7,6 +7,8 @@ import type {
   Person, Task, DriveFolder, FileNode,
   CalEvent, MailThread, Contact, TaxInvoice, Tx, Repo, Commit, PullRequest,
   CashReceipt, IssuerProfile, SlackChannel, SlackMessage,
+  CommerceOrder, ShippingInfo, InventoryItem, SalesDay,
+  Partner, BankAccount, BankTxn,
 } from "./types";
 
 export const SIHOON: Person = {
@@ -171,4 +173,89 @@ export const sampleSlackMessages: SlackMessage[] = [
   { ts: "1717293600.1004", channel: "C002", userId: "U2", userName: "Jinho", text: "Slack 연동도 이번 주에 붙여봐요.", date: "2026-06-01T11:00:00+09:00", reactions: [{ emoji: "rocket", count: 2 }] },
   // #clients
   { ts: "1717297200.2001", channel: "C003", userId: "U1", userName: "Sihoon", text: "안녕 Education 6월 워크숍 일정 확정됐습니다.", date: "2026-06-01T12:00:00+09:00" },
+];
+
+// 🛒 Commerce — 온워드유통 셀러 데이터 샘플 (docs/commerce-seller-sample.xlsx 와 동일)
+export const sampleOrders: CommerceOrder[] = [
+  { id: "20260602-0001", orderedAt: "2026-06-02 09:14", market: "스마트스토어", sku: "SKU-001", productName: "제주 감귤즙 100ml x30포", option: "1박스", qty: 2, unitPrice: 19900, amount: 39800, buyer: "김민서", phone: "010-2345-6781", status: "결제완료" },
+  { id: "20260602-0002", orderedAt: "2026-06-02 10:02", market: "쿠팡", sku: "SKU-007", productName: "제주 한라봉 5kg", option: "5kg", qty: 1, unitPrice: 32000, amount: 32000, buyer: "박지훈", phone: "010-3456-7892", status: "상품준비중" },
+  { id: "20260602-0003", orderedAt: "2026-06-02 11:37", market: "11번가", sku: "SKU-003", productName: "친환경 주방세제 1L", option: "2개세트", qty: 3, unitPrice: 12900, amount: 38700, buyer: "이서연", phone: "010-4567-8903", status: "결제완료" },
+  { id: "20260601-0007", orderedAt: "2026-06-01 14:21", market: "자사몰", sku: "SKU-005", productName: "국산 들기름 500ml", option: "500ml", qty: 2, unitPrice: 16900, amount: 33800, buyer: "정우진", phone: "010-5678-9014", status: "배송중" },
+  { id: "20260601-0006", orderedAt: "2026-06-01 13:05", market: "스마트스토어", sku: "SKU-008", productName: "발효 흑마늘즙 70ml x30", option: "1박스", qty: 1, unitPrice: 25900, amount: 25900, buyer: "최예린", phone: "010-6789-0125", status: "배송중" },
+  { id: "20260601-0005", orderedAt: "2026-06-01 09:48", market: "쿠팡", sku: "SKU-002", productName: "유기농 현미 5kg", option: "5kg", qty: 2, unitPrice: 23000, amount: 46000, buyer: "한도윤", phone: "010-7890-1236", status: "배송중" },
+  { id: "20260531-0009", orderedAt: "2026-05-31 16:33", market: "11번가", sku: "SKU-006", productName: "히말라야 핑크솔트 1kg", option: "1kg", qty: 4, unitPrice: 8900, amount: 35600, buyer: "오하준", phone: "010-8901-2347", status: "배송완료" },
+  { id: "20260531-0008", orderedAt: "2026-05-31 12:10", market: "자사몰", sku: "SKU-001", productName: "제주 감귤즙 100ml x30포", option: "1박스", qty: 1, unitPrice: 19900, amount: 19900, buyer: "임수아", phone: "010-9012-3458", status: "배송완료" },
+  { id: "20260530-0012", orderedAt: "2026-05-30 18:50", market: "스마트스토어", sku: "SKU-004", productName: "강원 곤드레나물 500g", option: "500g", qty: 5, unitPrice: 9900, amount: 49500, buyer: "강시우", phone: "010-0123-4569", status: "배송완료" },
+  { id: "20260530-0011", orderedAt: "2026-05-30 11:22", market: "쿠팡", sku: "SKU-007", productName: "제주 한라봉 5kg", option: "5kg", qty: 2, unitPrice: 32000, amount: 64000, buyer: "윤채원", phone: "010-1234-5670", status: "배송완료" },
+  { id: "20260529-0014", orderedAt: "2026-05-29 15:09", market: "11번가", sku: "SKU-005", productName: "국산 들기름 500ml", option: "500ml", qty: 1, unitPrice: 16900, amount: 16900, buyer: "서준호", phone: "010-2345-6782", status: "취소" },
+  { id: "20260529-0013", orderedAt: "2026-05-29 10:41", market: "자사몰", sku: "SKU-008", productName: "발효 흑마늘즙 70ml x30", option: "1박스", qty: 2, unitPrice: 25900, amount: 51800, buyer: "배지민", phone: "010-3456-7893", status: "배송완료" },
+  { id: "20260528-0016", orderedAt: "2026-05-28 17:28", market: "스마트스토어", sku: "SKU-003", productName: "친환경 주방세제 1L", option: "2개세트", qty: 1, unitPrice: 12900, amount: 12900, buyer: "신아린", phone: "010-4567-8904", status: "반품" },
+  { id: "20260528-0015", orderedAt: "2026-05-28 09:55", market: "쿠팡", sku: "SKU-002", productName: "유기농 현미 5kg", option: "5kg", qty: 3, unitPrice: 23000, amount: 69000, buyer: "문건우", phone: "010-5678-9015", status: "배송완료" },
+  { id: "20260527-0019", orderedAt: "2026-05-27 14:02", market: "11번가", sku: "SKU-001", productName: "제주 감귤즙 100ml x30포", option: "1박스", qty: 4, unitPrice: 19900, amount: 79600, buyer: "조유나", phone: "010-6789-0126", status: "배송완료" },
+  { id: "20260527-0018", orderedAt: "2026-05-27 11:18", market: "자사몰", sku: "SKU-006", productName: "히말라야 핑크솔트 1kg", option: "1kg", qty: 2, unitPrice: 8900, amount: 17800, buyer: "홍시현", phone: "010-7890-1237", status: "배송완료" },
+  { id: "20260526-0021", orderedAt: "2026-05-26 16:44", market: "스마트스토어", sku: "SKU-007", productName: "제주 한라봉 5kg", option: "5kg", qty: 1, unitPrice: 32000, amount: 32000, buyer: "권나경", phone: "010-8901-2348", status: "배송완료" },
+  { id: "20260526-0020", orderedAt: "2026-05-26 10:30", market: "쿠팡", sku: "SKU-004", productName: "강원 곤드레나물 500g", option: "500g", qty: 6, unitPrice: 9900, amount: 59400, buyer: "남도현", phone: "010-9012-3459", status: "배송완료" },
+];
+
+export const sampleShipping: ShippingInfo[] = [
+  { orderId: "20260601-0007", recipient: "정우진", address: "서울 강남구 테헤란로 152", courier: "CJ대한통운", trackingNo: "612345678901", shippedAt: "2026-06-01", status: "배송중", eta: "2026-06-03", memo: "부재시 경비실" },
+  { orderId: "20260601-0006", recipient: "최예린", address: "경기 성남시 분당구 판교로 255", courier: "롯데택배", trackingNo: "312345678902", shippedAt: "2026-06-01", status: "배송중", eta: "2026-06-03" },
+  { orderId: "20260601-0005", recipient: "한도윤", address: "부산 해운대구 우동 1394", courier: "한진택배", trackingNo: "412345678903", shippedAt: "2026-06-01", status: "배송중", eta: "2026-06-04", memo: "문 앞" },
+  { orderId: "20260531-0009", recipient: "오하준", address: "대구 수성구 동대구로 351", courier: "CJ대한통운", trackingNo: "612345678904", shippedAt: "2026-05-31", status: "배송완료", eta: "2026-06-02", memo: "수령완료" },
+  { orderId: "20260531-0008", recipient: "임수아", address: "인천 연수구 송도과학로 32", courier: "우체국택배", trackingNo: "112345678905", shippedAt: "2026-05-31", status: "배송완료", eta: "2026-06-02" },
+  { orderId: "20260530-0012", recipient: "강시우", address: "광주 서구 상무중앙로 110", courier: "롯데택배", trackingNo: "312345678906", shippedAt: "2026-05-30", status: "배송완료", eta: "2026-06-01", memo: "경비실 보관" },
+  { orderId: "20260530-0011", recipient: "윤채원", address: "대전 유성구 대학로 99", courier: "CJ대한통운", trackingNo: "612345678907", shippedAt: "2026-05-30", status: "배송완료", eta: "2026-06-01" },
+  { orderId: "20260529-0013", recipient: "배지민", address: "서울 마포구 월드컵북로 396", courier: "한진택배", trackingNo: "412345678908", shippedAt: "2026-05-29", status: "배송완료", eta: "2026-05-31", memo: "문 앞" },
+  { orderId: "20260528-0015", recipient: "문건우", address: "경기 수원시 영통구 광교로 145", courier: "CJ대한통운", trackingNo: "612345678909", shippedAt: "2026-05-28", status: "배송완료", eta: "2026-05-30" },
+  { orderId: "20260527-0019", recipient: "조유나", address: "울산 남구 삼산로 282", courier: "롯데택배", trackingNo: "312345678910", shippedAt: "2026-05-27", status: "배송완료", eta: "2026-05-29" },
+  { orderId: "20260527-0018", recipient: "홍시현", address: "서울 송파구 올림픽로 300", courier: "우체국택배", trackingNo: "112345678911", shippedAt: "2026-05-27", status: "배송완료", eta: "2026-05-29", memo: "무인택배함" },
+  { orderId: "20260526-0021", recipient: "권나경", address: "제주 제주시 첨단로 242", courier: "CJ대한통운", trackingNo: "612345678912", shippedAt: "2026-05-26", status: "배송완료", eta: "2026-05-29", memo: "항공배송" },
+  { orderId: "20260526-0020", recipient: "남도현", address: "경남 창원시 의창구 중앙대로 151", courier: "한진택배", trackingNo: "412345678913", shippedAt: "2026-05-26", status: "배송완료", eta: "2026-05-28" },
+];
+
+export const sampleInventory: InventoryItem[] = [
+  { sku: "SKU-001", productName: "제주 감귤즙 100ml x30포", option: "1박스", stock: 128, safetyStock: 40, incoming: 0, costPrice: 12000, salePrice: 19900 },
+  { sku: "SKU-002", productName: "유기농 현미 5kg", option: "5kg", stock: 36, safetyStock: 40, incoming: 100, costPrice: 14000, salePrice: 23000 },
+  { sku: "SKU-003", productName: "친환경 주방세제 1L", option: "2개세트", stock: 210, safetyStock: 50, incoming: 0, costPrice: 6000, salePrice: 12900 },
+  { sku: "SKU-004", productName: "강원 곤드레나물 500g", option: "500g", stock: 0, safetyStock: 30, incoming: 80, costPrice: 5000, salePrice: 9900 },
+  { sku: "SKU-005", productName: "국산 들기름 500ml", option: "500ml", stock: 54, safetyStock: 30, incoming: 0, costPrice: 9000, salePrice: 16900 },
+  { sku: "SKU-006", productName: "히말라야 핑크솔트 1kg", option: "1kg", stock: 96, safetyStock: 40, incoming: 0, costPrice: 4000, salePrice: 8900 },
+  { sku: "SKU-007", productName: "제주 한라봉 5kg", option: "5kg", stock: 22, safetyStock: 25, incoming: 60, costPrice: 18000, salePrice: 32000 },
+  { sku: "SKU-008", productName: "발효 흑마늘즙 70ml x30", option: "1박스", stock: 71, safetyStock: 30, incoming: 0, costPrice: 15000, salePrice: 25900 },
+];
+
+export const sampleSales: SalesDay[] = [
+  { date: "2026-05-26", orders: 6, revenue: 318600, fee: 38232, adCost: 25000, refund: 0 },
+  { date: "2026-05-27", orders: 5, revenue: 212400, fee: 25488, adCost: 20000, refund: 0 },
+  { date: "2026-05-28", orders: 4, revenue: 156700, fee: 18804, adCost: 18000, refund: 12900 },
+  { date: "2026-05-29", orders: 5, revenue: 189300, fee: 22716, adCost: 15000, refund: 16900 },
+  { date: "2026-05-30", orders: 7, revenue: 401800, fee: 48216, adCost: 30000, refund: 0 },
+  { date: "2026-05-31", orders: 6, revenue: 238500, fee: 28620, adCost: 22000, refund: 0 },
+  { date: "2026-06-01", orders: 8, revenue: 512300, fee: 61476, adCost: 35000, refund: 0 },
+  { date: "2026-06-02", orders: 5, revenue: 165500, fee: 19860, adCost: 18000, refund: 0 },
+];
+
+// 🧾 거래처(공급받는자) 마스터 샘플 — 세금계산서 자동완성 데모용
+export const samplePartners: Partner[] = [
+  { id: "ptn-1", name: "안녕 Education", bizNo: "123-45-67890", ceoName: "이수민", email: "contact@annyeong.kr", address: "서울 강남구 테헤란로 152", createdAt: "2026-05-10T00:00:00+09:00", updatedAt: "2026-05-10T00:00:00+09:00" },
+  { id: "ptn-2", name: "Vive", bizNo: "211-88-12345", ceoName: "박지훈", email: "hello@vive.io", address: "서울 마포구 월드컵북로 396", createdAt: "2026-05-12T00:00:00+09:00", updatedAt: "2026-05-12T00:00:00+09:00" },
+  { id: "ptn-3", name: "교내 AI Club", bizNo: "134-82-33333", ceoName: "김club", email: "club@campus.ac.kr", createdAt: "2026-05-15T00:00:00+09:00", updatedAt: "2026-05-15T00:00:00+09:00" },
+  { id: "ptn-4", name: "그린마트", bizNo: "220-81-55667", ceoName: "김그린", email: "buy@greenmart.kr", address: "경기 성남시 분당구 판교로 255", createdAt: "2026-05-18T00:00:00+09:00", updatedAt: "2026-05-18T00:00:00+09:00" },
+];
+
+// 🏦 연동 계좌/카드(mock) + 거래내역 샘플
+export const sampleBankAccounts: BankAccount[] = [
+  { id: "acc-bank-1", kind: "bank", label: "국민은행", accountNo: "123-45-****-678", holder: "온워드랩", addedAt: "2026-05-20T00:00:00+09:00" },
+  { id: "acc-card-1", kind: "card", label: "신한카드", accountNo: "****-****-****-5678", holder: "온워드랩", addedAt: "2026-05-20T00:00:00+09:00" },
+];
+
+export const sampleBankTxns: BankTxn[] = [
+  { id: "btx-1", accountId: "acc-bank-1", date: "2026-06-01", direction: "in", counterparty: "안녕 Education", amount: 1200000, source: "bank" },
+  { id: "btx-2", accountId: "acc-bank-1", date: "2026-05-30", direction: "in", counterparty: "Vive", amount: 1650000, source: "bank" },
+  { id: "btx-3", accountId: "acc-bank-1", date: "2026-05-28", direction: "out", counterparty: "Google Cloud", amount: 99000, source: "bank" },
+  { id: "btx-4", accountId: "acc-bank-1", date: "2026-05-25", direction: "in", counterparty: "교내 AI Club", amount: 880000, source: "bank" },
+  { id: "btx-5", accountId: "acc-bank-1", date: "2026-05-22", direction: "in", counterparty: "그린마트", amount: 2200000, source: "bank" },
+  { id: "btx-6", accountId: "acc-bank-1", date: "2026-05-20", direction: "in", counterparty: "안녕 Education", amount: 600000, source: "bank" },
+  { id: "btx-7", accountId: "acc-card-1", date: "2026-05-27", direction: "out", counterparty: "AWS", amount: 142000, source: "card" },
+  { id: "btx-8", accountId: "acc-card-1", date: "2026-05-24", direction: "out", counterparty: "배달의민족", amount: 38000, source: "card" },
 ];

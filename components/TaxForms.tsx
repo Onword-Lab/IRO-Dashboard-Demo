@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Save } from "lucide-react";
 import type { IssuerProfile, CashReceiptPurpose } from "@/lib/types";
 import { fmtMoney } from "./ui";
+import PartnerPicker from "./PartnerPicker";
 
 const inputCls =
   "w-full rounded-lg border border-line bg-cream px-3 py-1.5 text-sm text-charcoal outline-none focus:border-coral";
@@ -31,7 +32,18 @@ function today() { return new Date().toISOString().slice(0, 10); }
 // ── 세금계산서 정발행 ─────────────────────────────────────────────────────────
 type Row = { name: string; qty: string; unitPrice: string };
 
-export function TaxInvoiceForm({ profile, onClose, onIssued }: { profile: IssuerProfile; onClose: () => void; onIssued: () => void }) {
+export interface PrefillItem { name?: string; qty?: number; unitPrice?: number; }
+
+export function TaxInvoiceForm({
+  profile, onClose, onIssued,
+  prefillItems, sourceTxnIds,
+}: {
+  profile: IssuerProfile;
+  onClose: () => void;
+  onIssued: () => void;
+  prefillItems?: PrefillItem[];
+  sourceTxnIds?: string[];
+}) {
   const [partnerBizNo, setBizNo] = useState("");
   const [partnerName, setName] = useState("");
   const [partnerCeo, setCeo] = useState("");
@@ -39,8 +51,26 @@ export function TaxInvoiceForm({ profile, onClose, onIssued }: { profile: Issuer
   const [issueDate, setIssueDate] = useState(today());
   const [taxType, setTaxType] = useState<"과세" | "영세" | "면세">("과세");
   const [receiveType, setReceiveType] = useState<"영수" | "청구">("청구");
-  const [rows, setRows] = useState<Row[]>([{ name: "", qty: "1", unitPrice: "" }]);
+  const initRows: Row[] = prefillItems && prefillItems.length > 0
+    ? prefillItems.map((it) => ({ name: it.name ?? "", qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? "") }))
+    : [{ name: "", qty: "1", unitPrice: "" }];
+  const [rows, setRows] = useState<Row[]>(initRows);
   const [busy, setBusy] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
+
+  async function savePartner() {
+    if (!partnerName.trim() || !partnerBizNo.trim()) {
+      setSavedMsg("상호·번호 필요"); setTimeout(() => setSavedMsg(""), 1500); return;
+    }
+    try {
+      await fetch("/api/partners", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: partnerName, bizNo: partnerBizNo, ceoName: partnerCeo, email: partnerEmail }),
+      });
+      setSavedMsg("저장됨 ✓");
+    } catch { setSavedMsg("저장 실패"); }
+    setTimeout(() => setSavedMsg(""), 1500);
+  }
 
   const computed = useMemo(() => {
     const lines = rows.map((r) => {
@@ -69,6 +99,7 @@ export function TaxInvoiceForm({ profile, onClose, onIssued }: { profile: Issuer
         body: JSON.stringify({
           partnerBizNo, partnerName, partnerCeo, partnerEmail, issueDate, taxType, receiveType,
           items: rows.map((r) => ({ name: r.name, qty: Number(r.qty) || 0, unitPrice: Number(r.unitPrice) || 0 })),
+          sourceTxnIds: sourceTxnIds ?? [],
         }),
       });
       onIssued();
@@ -83,6 +114,17 @@ export function TaxInvoiceForm({ profile, onClose, onIssued }: { profile: Issuer
         <span className="text-charcoal">{profile.corpName ?? "내 사업자"}</span>
         {profile.bizNo && <span className="ml-2 font-mono text-warmgray">{profile.bizNo}</span>}
         <span className="ml-2 rounded bg-line px-1.5 py-0.5 text-[10px] text-warmgray">자동</span>
+      </div>
+
+      {/* 거래처 자동완성 */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center justify-between">
+          <label className={labelCls + " mb-0"}>거래처 선택 (저장된 거래처를 고르면 아래 칸이 자동으로 채워져요)</label>
+          <button type="button" onClick={savePartner} className="flex items-center gap-1 text-[11px] font-medium text-coral-dark hover:underline">
+            <Save size={11} /> {savedMsg || "현재 거래처 저장"}
+          </button>
+        </div>
+        <PartnerPicker onPick={(p) => { setBizNo(p.bizNo); setName(p.name); setCeo(p.ceoName ?? ""); setEmail(p.email ?? ""); }} />
       </div>
 
       {/* 공급받는자 */}
